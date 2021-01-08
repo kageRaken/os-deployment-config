@@ -1,0 +1,63 @@
+#! /bin/bash
+
+sess="node-monitor"
+
+if [[ $(tmux list-sessions | grep -i node-monitor | wc -l) -gt 0 ]]
+then
+	tmux attach -t $sess
+else
+
+	glances_conf="'sudo docker ps | grep -i bash | cut -f 1 -d \" \" | xargs sudo docker rm {} -f; sleep 3; while true; do sudo glances --disable-ports; sleep 2; done'"
+	rows="$(tput lines)"
+	cols="$(tput cols)"
+
+
+	tmux new-session -s $sess -d -x "$cols" -y "$rows"
+	tmux rename-window mon-ctl
+	tmux split-window -h -p 0	# A
+	tmux resize-pane -L 17		# 7
+	tmux select-pane -t 0		
+	tmux split-window -v 		# B 
+	tmux split-window -h -p 66 	# C 
+	tmux split-window -h -p 50 	# D
+	tmux select-pane -t 0
+	tmux split-window -h -p 66 	# E
+	tmux split-window -h -p 50 	# F
+	tmux split-window -v -p 0 	# G
+	tmux resize-pane -U 7		# 3
+	tmux send-keys -t 0 "ssh -t controller1 $glances_conf" C-m 
+	tmux send-keys -t 1 "ssh -t controller2 $glances_conf" C-m 
+	tmux send-keys -t 4 "ssh -t controller3 $glances_conf" C-m 
+	tmux send-keys -t 5 "ssh -t controller4 $glances_conf" C-m 
+	tmux send-keys -t 6 "ssh -t controller6 $glances_conf" C-m 
+	tmux send-keys -t 2 "ssh -t controller1 sudo /root/cephadm shell" C-m 
+	tmux send-keys -t 2 "watch -n .2 ceph status" C-m 
+	tmux send-keys -t 3 "ssh -t controller1 sudo /root/cephadm shell" C-m 
+	tmux send-keys -t 3 "watch -n .2 ceph health detail" C-m 
+	tmux send-keys -t 7 "ping -i 2 -O 1.1.1.1 |  sed 's:64 bytes from 1.1.1.1\: icmp_seq:seq:;s:ttl=56 time:t:'" C-m
+	tmux attach -t node-monitor 
+
+
+
+fi
+
+############################################################
+#               E                  F               A       #
+#               E                  F       2       A       #
+#               E                  F               A       #
+#       0       E         1        FGGGGGGGGGGGGGGGA       #
+#               E                  F               A       #
+#               E                  F       3       A       #
+#               E                  F               A       #
+#BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA   7   #
+#               C                  D               A       #
+#               C                  D               A       #
+#               C                  D               A       #
+#       4       C         5        D       6       A       #
+#               C                  D               A       #
+#               C                  D               A       #
+#               C                  D               A       #
+############################################################
+
+
+
